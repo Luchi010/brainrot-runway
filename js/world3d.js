@@ -210,6 +210,7 @@ const World3D = (() => {
   const buyBtn = el(btnCss + 'left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:30px;background:#e53935;border:3px solid #fff;font-size:14px;line-height:1.3;display:none;white-space:nowrap');
   const jumpBtn = el(btnCss + 'right:14px;width:62px;height:62px;border-radius:50%;background:rgba(30,136,229,.85);border:3px solid #fff;font-size:12px;display:flex;align-items:center;justify-content:center', 'ジャンプ');
   const toastEl = el('position:absolute;z-index:9;left:10px;top:14px;max-width:58%;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.8);border:2px solid #ffeb3b;color:#fff;font-size:12px;font-weight:bold;white-space:pre-line;display:none;pointer-events:none');
+  const controlHint = el('position:absolute;z-index:7;left:10px;bottom:12px;max-width:68%;padding:6px 9px;border-radius:7px;background:rgba(0,0,0,.62);border:1px solid rgba(255,235,59,.75);color:#fff;font-size:10px;line-height:1.45;white-space:pre-line;pointer-events:none', 'PC: WASD / 矢印で移動・ドラッグで視点\nスマホ: 左ドラッグで移動・右ドラッグで視点');
   let toastTimer = 0;
   function toast(msg, ms) {
     toastEl.textContent = msg; toastEl.style.display = 'block';
@@ -219,7 +220,7 @@ const World3D = (() => {
   let lastBottom = -1;
 
   // ---- 入力 ----
-  let yaw = 0, pitch = 0.35, jumpReq = false;
+  let yaw = 0, pitch = 0.35, camDist = 7.5, jumpReq = false;
   let joy = null, pressed = null;
   const looks = new Map();
   const keys = {};
@@ -277,6 +278,11 @@ const World3D = (() => {
   };
   cv.addEventListener('pointerup', up);
   cv.addEventListener('pointercancel', up);
+  cv.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'mouse') up(e); });
+  cv.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    camDist = clamp(camDist + e.deltaY * 0.006, 5.2, 11);
+  }, { passive: false });
 
   // 「長押しで購入」ボタン（一番近いキャラ）
   let nearest = null;
@@ -350,7 +356,7 @@ const World3D = (() => {
     avatar.position.y = air ? 0 : Math.abs(Math.sin(phase)) * 0.06 * amt;
 
     // カメラ（プレイヤーの後ろを周回）
-    const tx = player.position.x, ty = player.position.y + 2.2, tz = player.position.z, D = 7.5, cp = Math.cos(pitch);
+    const tx = player.position.x, ty = player.position.y + 2.2, tz = player.position.z, D = camDist, cp = Math.cos(pitch);
     cam.position.set(
       clamp(tx + Math.sin(yaw) * cp * D, -(HALF_W - 0.7), HALF_W - 0.7),
       Math.max(0.6, ty + Math.sin(pitch) * D),
