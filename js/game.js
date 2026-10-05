@@ -185,7 +185,7 @@ let lastSpawnTime = performance.now();
 
         function loginUser(username, data) {
             currentUser = username;
-            localStorage.setItem('brainrot_last_user', currentUser);
+            localStorage.setItem('brainrot_last_user', currentUser); World3D.setName(currentUser);
 
             money = data.money !== undefined ? data.money : 1000;
             rebirthCount = Math.max(0, parseInt(data.rebirthCount) || 0);
@@ -215,7 +215,7 @@ let lastSpawnTime = performance.now();
             currentUser = null;
             localStorage.removeItem('brainrot_last_user');
 
-            World3D.clearRunners();
+            World3D.clearRunners(); World3D.setName('ゲスト');
             rebirthCount = 0;
             stocks = [null, null, null, null, null];
 
