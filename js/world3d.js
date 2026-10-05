@@ -209,9 +209,11 @@ const World3D = (() => {
   const joyKnob = el('position:absolute;width:50px;height:50px;margin:-25px 0 0 -25px;border-radius:50%;background:rgba(255,255,255,.55);z-index:8;display:none;pointer-events:none');
   const btnCss = 'position:absolute;z-index:8;color:#fff;font-weight:bold;text-align:center;touch-action:none;user-select:none;-webkit-user-select:none;';
   const buyBtn = el(btnCss + 'display:none;');
+  const zoomInBtn = el(btnCss + 'right:22px;width:42px;height:34px;border-radius:10px;background:rgba(0,0,0,.38);border:2px solid rgba(255,255,255,.65);font-size:22px;line-height:24px;display:flex;align-items:center;justify-content:center', '＋');
+  const zoomOutBtn = el(btnCss + 'right:22px;width:42px;height:34px;border-radius:10px;background:rgba(0,0,0,.38);border:2px solid rgba(255,255,255,.65);font-size:22px;line-height:24px;display:flex;align-items:center;justify-content:center', '−');
   const jumpBtn = el(btnCss + 'right:14px;width:62px;height:62px;border-radius:50%;background:rgba(30,136,229,.35);border:2px solid rgba(255,255,255,.72);box-shadow:0 2px 10px rgba(0,0,0,.35);font-size:12px;display:flex;align-items:center;justify-content:center', 'ジャンプ');
   const toastEl = el('position:absolute;z-index:9;left:10px;top:14px;max-width:58%;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.8);border:2px solid #ffeb3b;color:#fff;font-size:12px;font-weight:bold;white-space:pre-line;display:none;pointer-events:none');
-  const controlHint = el('position:absolute;z-index:7;left:10px;bottom:12px;max-width:68%;padding:6px 9px;border-radius:7px;background:rgba(0,0,0,.62);border:1px solid rgba(255,235,59,.75);color:#fff;font-size:10px;line-height:1.45;white-space:pre-line;pointer-events:none', 'PC: WASD / 矢印で移動・ドラッグで視点\nスマホ: 左ドラッグで移動・右ドラッグで視点');
+  const controlHint = el('position:absolute;z-index:7;left:10px;bottom:12px;max-width:68%;padding:6px 9px;border-radius:7px;background:rgba(0,0,0,.62);border:1px solid rgba(255,235,59,.75);color:#fff;font-size:10px;line-height:1.45;white-space:pre-line;pointer-events:none', 'PC: WASD / 矢印で移動・ドラッグで視点\nスマホ: 左ドラッグで移動・右ドラッグで視点\n＋/−・ホイール・ピンチ: ズーム');
   let toastTimer = 0;
   function toast(msg, ms) {
     toastEl.textContent = msg; toastEl.style.display = 'block';
@@ -223,6 +225,8 @@ const World3D = (() => {
   // ---- 入力 ----
   let yaw = 0, pitch = 0.35, camDist = 7.5, jumpReq = false;
   let joy = null, pressed = null;
+  const pinchPointers = new Map();
+  let pinchStartDist = 0, pinchStartCam = camDist;
   const looks = new Map();
   const keys = {};
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
@@ -242,6 +246,16 @@ const World3D = (() => {
   cv.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+    if (e.pointerType === 'touch') {
+      pinchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pinchPointers.size >= 2) {
+        release(); joy = null; joyBase.style.display = 'none'; joyKnob.style.display = 'none';
+        const ps = [...pinchPointers.values()];
+        pinchStartDist = Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y);
+        pinchStartCam = camDist;
+        return;
+      }
+    }
     const t = pick(e);
     if (t) {
       if (inRange(t)) { looks.set(e.pointerId, { role: 'hold' }); press(t); return; }
@@ -257,6 +271,13 @@ const World3D = (() => {
     }
   });
   cv.addEventListener('pointermove', (e) => {
+    if (pinchPointers.has(e.pointerId)) pinchPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinchPointers.size >= 2) {
+      const ps = [...pinchPointers.values()];
+      const dist = Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y);
+      camDist = clamp(pinchStartCam - (dist - pinchStartDist) * 0.018, 5.2, 11);
+      return;
+    }
     if (joy && joy.id === e.pointerId) {
       const [x, y] = hostPos(e);
       let dx = x - joy.ox, dy = y - joy.oy; const d = Math.hypot(dx, dy), R = 55;
@@ -273,6 +294,7 @@ const World3D = (() => {
     }
   });
   const up = (e) => {
+    pinchPointers.delete(e.pointerId);
     if (joy && joy.id === e.pointerId) { joy = null; joyBase.style.display = 'none'; joyKnob.style.display = 'none'; }
     const l = looks.get(e.pointerId);
     if (l) { if (l.role === 'hold') release(); looks.delete(e.pointerId); }
@@ -290,6 +312,8 @@ const World3D = (() => {
   buyBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); try { buyBtn.setPointerCapture(e.pointerId); } catch (_) {} press(nearest); });
   ['pointerup', 'pointercancel'].forEach(n => buyBtn.addEventListener(n, release));
   jumpBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); jumpReq = true; });
+  zoomInBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); camDist = clamp(camDist - 0.8, 5.2, 11); });
+  zoomOutBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); camDist = clamp(camDist + 0.8, 5.2, 11); });
 
   const typing = (e) => /INPUT|SELECT|TEXTAREA/.test((e.target && e.target.tagName) || '');
   window.addEventListener('keydown', (e) => {
@@ -397,7 +421,13 @@ const World3D = (() => {
     // ボタンをストックパネルの上に配置
     if (panel) {
       const b = Math.round(host.getBoundingClientRect().bottom - panel.getBoundingClientRect().top + 14);
-      if (b !== lastBottom && b > 0) { lastBottom = b; buyBtn.style.bottom = b + 'px'; jumpBtn.style.bottom = b + 'px'; }
+      if (b !== lastBottom && b > 0) {
+        lastBottom = b;
+        buyBtn.style.bottom = b + 'px';
+        jumpBtn.style.bottom = b + 'px';
+        zoomOutBtn.style.bottom = (b + 72) + 'px';
+        zoomInBtn.style.bottom = (b + 112) + 'px';
+      }
     }
 
     const hue = (t * 0.25) % 1;
