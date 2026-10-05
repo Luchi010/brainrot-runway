@@ -164,7 +164,8 @@ const World3D = (() => {
   function addRunner(o) {
     const fig = buildFigure(o, true);
     const root = new THREE.Group(); root.add(fig);
-    root.position.set((Math.random() - 0.5) * 4, 0, GATE_Z); root.scale.setScalar(0.8);
+    // キャラクターはランウェイ中央からまっすぐ手前へ進む
+    root.position.set(0, 0, GATE_Z); root.scale.setScalar(0.8);
     const hit = new THREE.Mesh(new THREE.BoxGeometry(2.8, 4.2, 1.5), new THREE.MeshBasicMaterial({ visible: false }));
     hit.position.y = 2; root.add(hit);
     const bar = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.18), new THREE.MeshBasicMaterial({ color: 0x00e676, depthTest: false }));
@@ -207,8 +208,8 @@ const World3D = (() => {
   const joyBase = el('position:absolute;width:110px;height:110px;margin:-55px 0 0 -55px;border-radius:50%;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.4);z-index:8;display:none;pointer-events:none');
   const joyKnob = el('position:absolute;width:50px;height:50px;margin:-25px 0 0 -25px;border-radius:50%;background:rgba(255,255,255,.55);z-index:8;display:none;pointer-events:none');
   const btnCss = 'position:absolute;z-index:8;color:#fff;font-weight:bold;text-align:center;touch-action:none;user-select:none;-webkit-user-select:none;';
-  const buyBtn = el(btnCss + 'left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:30px;background:#e53935;border:3px solid #fff;font-size:14px;line-height:1.3;display:none;white-space:nowrap');
-  const jumpBtn = el(btnCss + 'right:14px;width:62px;height:62px;border-radius:50%;background:rgba(30,136,229,.85);border:3px solid #fff;font-size:12px;display:flex;align-items:center;justify-content:center', 'ジャンプ');
+  const buyBtn = el(btnCss + 'display:none;');
+  const jumpBtn = el(btnCss + 'right:14px;width:62px;height:62px;border-radius:50%;background:rgba(30,136,229,.35);border:2px solid rgba(255,255,255,.72);box-shadow:0 2px 10px rgba(0,0,0,.35);font-size:12px;display:flex;align-items:center;justify-content:center', 'ジャンプ');
   const toastEl = el('position:absolute;z-index:9;left:10px;top:14px;max-width:58%;padding:8px 12px;border-radius:8px;background:rgba(0,0,0,.8);border:2px solid #ffeb3b;color:#fff;font-size:12px;font-weight:bold;white-space:pre-line;display:none;pointer-events:none');
   const controlHint = el('position:absolute;z-index:7;left:10px;bottom:12px;max-width:68%;padding:6px 9px;border-radius:7px;background:rgba(0,0,0,.62);border:1px solid rgba(255,235,59,.75);color:#fff;font-size:10px;line-height:1.45;white-space:pre-line;pointer-events:none', 'PC: WASD / 矢印で移動・ドラッグで視点\nスマホ: 左ドラッグで移動・右ドラッグで視点');
   let toastTimer = 0;
@@ -389,11 +390,9 @@ const World3D = (() => {
     if (pressed && !inRange(pressed)) { release(); toast('離れすぎ！近づいて長押し'); }
     if (nearest) nearest.ring.visible = true;
     const nid = nearest ? nearest.spawn : null;
-    if (nid !== nearestId) {
-      nearestId = nid;
-      if (nearest) buyBtn.innerHTML = '長押しで購入<br><span style="font-size:11px;color:#ffeb3b">' + nearest.name.replace(/</g, '&lt;') + '</span>';
-      buyBtn.style.display = nearest ? 'block' : 'none';
-    }
+    if (nid !== nearestId) nearestId = nid;
+    // 購入UIは出さず、3Dキャラクター本体の長押しだけで購入する
+    buyBtn.style.display = 'none';
 
     // ボタンをストックパネルの上に配置
     if (panel) {
